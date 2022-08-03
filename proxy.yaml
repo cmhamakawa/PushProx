@@ -29,5 +29,4 @@ spec:
     app: pushproxy-deployment
   ports:
     - port: 8080
-
   type: LoadBalancer
