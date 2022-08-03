@@ -19,6 +19,3 @@ spec:
         image: christineacr.azurecr.io/pushprox_client
         ports:
         - containerPort: 8080
-#        imagePullPolicy: IfNotPresent
-#      imagePullSecrets:
- #     - name: mikaregistry

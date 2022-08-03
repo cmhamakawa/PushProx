@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: prom-deployment
-        image: christineacr.azurecr.io/pushprox_prometheus:v0
+        image: christineacr.azurecr.io/pushprox_prometheus:v1
         ports:
         - containerPort: 9090
