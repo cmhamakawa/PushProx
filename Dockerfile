@@ -14,7 +14,7 @@ USER	nobody
 ENTRYPOINT ["/app/pushprox-client", "--proxy-url=http://proxy:8080/", "--fqdn=kube-dns.kube-system.svc"]
 
 FROM prom/prometheus as prometheus
-ADD prometheus.yml /etc/prometheus/
+ADD prometheus.yaml /etc/prometheus/
 # EXPOSE 9090
 
 # ARG ARCH="amd64"
