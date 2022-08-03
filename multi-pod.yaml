@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pushproxy-all
+spec:
+  containers:
+  - name: proxy
+    image: christineacr.azurecr.io/pushprox_proxy
+  - name: client
+    image: christineacr.azurecr.io/pushprox_client
+  - name: prometheus
+    image: christineacr.azurecr.io/pushprox_prometheus

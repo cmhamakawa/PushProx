@@ -45,8 +45,8 @@ import (
 var (
 	myFqdn      = kingpin.Flag("fqdn", "FQDN to register with").Default(fqdn.Get()).String()
 	proxyURL    = kingpin.Flag("proxy-url", "Push proxy to talk to.").Required().String()
-	caCertFile  = kingpin.Flag("tls.cacert", "<file> CA certificate to verify peer against").String()
-	tlsCert     = kingpin.Flag("tls.cert", "<cert> Client certificate file").String()
+	caCertFile  = kingpin.Flag("tls.cacert", "<file> CA certificate to verify peer against").String() // Q: isn't this authentication?
+	tlsCert     = kingpin.Flag("tls.cert", "<cert> Client certificate file").String() // isn't this certification?
 	tlsKey      = kingpin.Flag("tls.key", "<key> Private key file").String()
 	metricsAddr = kingpin.Flag("metrics-addr", "Serve Prometheus metrics at this address").Default(":9369").String()
 
@@ -281,8 +281,10 @@ func main() {
 		}()
 	}
 
+	// os.Setenv("HTTP_PROXY", "http://localhost:8080")
+
 	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
+		Proxy: http.ProxyFromEnvironment, // does this have the pushproxy url?
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
