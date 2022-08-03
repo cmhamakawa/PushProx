@@ -2,9 +2,6 @@
 /.release/
 /.tarballs/
 /node_exporter*
-/prometheus*
 /data/
-/pushprox-client
-/pushprox-proxy
 
 /vendor
