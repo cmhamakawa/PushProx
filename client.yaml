@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: pushclient-deployment
-        image: christineacr.azurecr.io/pushprox_client
+        image: christineacr.azurecr.io/pushprox_client_v5
         ports:
         - containerPort: 8080

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: pushproxy-deployment
-        image: christineacr.azurecr.io/pushprox_proxy
+        image: christineacr.azurecr.io/pushprox_proxy_v5
         ports:
           - containerPort: 8080
 ---
