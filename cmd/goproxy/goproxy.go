@@ -3,9 +3,9 @@ package main
 import (
 	"net/http"
 
-	"goproxy_pkg"
+	"github.com/goproxy/goproxy"
 )
 
 func main() {
-	http.ListenAndServe("localhost:8080", &goproxy.Goproxy{})
+	http.ListenAndServe("localhost:9999", &goproxy.Goproxy{})
 }
