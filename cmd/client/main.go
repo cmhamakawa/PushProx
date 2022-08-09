@@ -285,31 +285,42 @@ func main() {
 	//level.Info(c.logger).Log("CHRISTINE", "Check Proxy Environment: ",  http.ProxyFromEnvironment.Scheme)
 	var proxyConn net.Conn
 	var err error
-	envoyAddress := "0.0.0.0:10001"
+	envoyAddress := "172.24.4.28:10001"
+	tempProxyURL := strings.TrimRight(*proxyURL, "/")
+	tempProxyURL = strings.TrimPrefix(tempProxyURL, "http://")
 	proxyConn, err = net.Dial("tcp", envoyAddress)
 	if err != nil {
 		level.Error(coordinator.logger).Log("msg", "dialing proxy %q failed: %v", envoyAddress, err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(proxyConn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", *proxyURL, "127.0.0.1")
+	fmt.Fprintf(proxyConn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", tempProxyURL, tempProxyURL)
 
 	br := bufio.NewReader(proxyConn)
 	res, err := http.ReadResponse(br, nil)
 
-	res, err = http.ReadResponse(br, nil)
 	if err != nil {
 		level.Error(coordinator.logger).Log("msg", "reading HTTP response from CONNECT to %s via proxy %s failed: %v",
 			*proxyURL, envoyAddress, err)
 		os.Exit(1)
 
 	}
+
+	// err = res.Body.Close()
+
+	// if err != nil {
+	// 	level.Error(coordinator.logger).Log("msg", "response body close has failed: %s via proxy %s and %v",
+	// 		*proxyURL, envoyAddress, err)
+	// 	os.Exit(1)
+
+	// }
+
 	if res.StatusCode != 200 {
-		level.Error(coordinator.logger).Log("msg", "proxy error from %s while dialing %s: %v", envoyAddress, *proxyURL, res.Status)
-		os.Exit(1)
+		level.Error(coordinator.logger).Log("msg", "proxy error from %s while dialing %s: %v", envoyAddress, tempProxyURL, res.Status)
+		// os.Exit(1)
 
 	}
 
-	dialer, err := func(ctx context.Context, netowrk, addr string) (net.Conn, error) {
+	dialer, err := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return proxyConn, nil
 	}, nil
 
@@ -322,8 +333,8 @@ func main() {
 	transport := &http.Transport{
 		// Proxy: http.ProxyFromEnvironment, // does this have the pushproxy url?
 		DialContext: dialer,
-		// MaxIdleConns:          100,
-		// IdleConnTimeout:       90 * time.Second,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
 		// TLSHandshakeTimeout:   10 * time.Second,
 		// ExpectContinueTimeout: 1 * time.Second,
 		// TLSClientConfig:       tlsConfig,

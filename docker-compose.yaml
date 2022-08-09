@@ -4,23 +4,13 @@ services:
     build:
       context: .
       target: client
-    ports:
-      - 2222:2222
   proxy:
     build:
       context: .
       target: proxy
-    ports:
-      - 8080:8080
   prometheus:
     build:
       context: .
       target: prometheus
     ports:
       - 9090:9090
-  goproxy:
-    build:
-      context: .
-      target: goproxy
-    ports:
-      - 9999:9999
