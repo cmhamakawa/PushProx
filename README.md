@@ -1,77 +1,25 @@
 # PushProx [![CircleCI](https://circleci.com/gh/prometheus-community/PushProx.svg?style=shield)](https://circleci.com/gh/prometheus-community/PushProx)
 
-PushProx is a client and proxy that allows transversing of NAT and other
-similar network topologies by Prometheus, while still following the pull model.
+Refer to original repository for conceptual understanding. This is a modification for purposes of using Envoy and sending request through a tunnel. Implementation of HTTP Connect taken from [![Here](https://github.com/kubernetes-sigs/apiserver-network-proxy/blob/master/cmd/client/main.go).
 
-While this is reasonably robust in practice, this is a work in progress.
+There are two steps to this process. The goal is to run pushprox in Kubernetes.
 
-## Running
+The three examples/tests I used here were:
+1. PushProx_DockerTest - I got PushProxy (client and proxy) and Prometheus running in docker. Then I used the images in Docker and ran it in AKS.
+2. PushProx_BinaryTest - I made images for the binaries (client and proxy). In Docker, only the Prometheus was actually running. I pulled the binaries in AKS via yaml files and used the args in yaml files to run PushProxy.
+3. PushProxy_StandaloneTest - Basically used the PushProx_BinaryTest yaml files but changed main.go in client and configured everything for the standalone environment.
 
-First build the proxy and client:
+## File Explanation
+There are the three "Test" directories. Depending on the test you want to run, you'll need to replace the files in the main directory and run ```make build```. Furthermore, for the first two tests (DockerTest and BinaryTest), you'll need to replace client's main.go file with the original repository since the current one is configured for the standalone environment. This includes docker-compose.yaml, prometheus.yml, Dockerfile.
 
-```
-git clone https://github.com/prometheus-community/pushprox.git
-cd pushprox
-make build
-```
+## Build and Push Docker Images
+Run ```make build``` in main directory to make the binaries. I believe the binaries should be in the main directory and will be named pushprox-client and pushprox-proxy. Make sure to change main.go in client according to your desired test.
 
-Run the proxy somewhere both Prometheus and the clients can get to:
+Run ```docker-compose up -d```. Note that if you have current images or containers running, you'll have to delete them before this command in order to have the new changes.
 
-```
-./pushprox-proxy
-```
+Login to your acr registry. ```az acr login -n $acr_name```
+Docker tag images: ```docker tag pushprox_client $acr_name.azurecr.io/pushprox_client``` (do the same for pushprox_proxy and pushprox_prometheus)
+Docker push images: ```docker push $acr_name.azurecr.io/pushprox_client```
 
-On every target machine run the client, pointing it at the proxy:
-```
-./pushprox-client --proxy-url=http://proxy:8080/
-```
-
-In Prometheus, use the proxy as a `proxy_url`:
-
-```
-scrape_configs:
-- job_name: node
-  proxy_url: http://proxy:8080/
-  static_configs:
-    - targets: ['client:9100']  # Presuming the FQDN of the client is "client".
-```
-
-If the target must be scraped over SSL/TLS, add:
-```
-  params:
-    _scheme: [https]
-```
-rather than the usual `scheme: https`. Only the default `scheme: http` works with the proxy,
-so this workaround is required.
-
-## Service Discovery
-
-The `/clients` endpoint will return a list of all registered clients in the format
-used by `file_sd_configs`. You could use wget in a cronjob to put it somewhere
-file\_sd\_configs can read and then then relabel as needed.
-
-## How It Works
-
-![Sequence diagram](./docs/sequence.svg)
-
-Clients perform scrapes in a network environment that's not directly accessible by Prometheus. 
-The Proxy is accessible by both the Clients and Prometheus.
-Each client is identified by its fqdn.
-
-For example, the following sequence is performed when Prometheus scrapes target `fqdn-x` via PushProx.
-First, a Client polls the Proxy for scrape requests, and includes its fqdn in the poll (1). 
-The Proxy does not respond yet.
-Next, Prometheus tries to scrape the target with hostname `fqdn-x` via the Proxy (2).
-Using the fqdn received in (1), the Proxy now routes the scrape to the correct Client: the scrape request is in the response body of the poll (3).
-This scrape request is executed by the client (4), the response containing metrics (5) is posted to the Proxy (6). 
-On its turn, the Proxy returns this to Prometheus (7) as a reponse to the initial scrape of (2).
-
-PushProx passes all HTTP headers transparently, features like compression and accept encoding are up to the scraping Prometheus server.
-
-## Security
-
-There is no authentication or authorisation included, a reverse proxy can be
-put in front though to add these.
-
-Running the client allows those with access to the proxy or the client to access
-all network services on the machine hosting the client.
+## Run in Azure Kubernetes Service
+Pretty straightforward - deploy the yaml files in the directory AKS_Deployment in your desired test directory.
