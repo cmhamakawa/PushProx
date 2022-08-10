@@ -10,9 +10,9 @@ The three examples/tests I used here were:
 3. PushProxy_StandaloneTest - Basically used the PushProx_BinaryTest yaml files but changed main.go in client and configured everything for the standalone environment.
 
 ## File Explanation
-There are the three "Test" directories. Depending on the test you want to run, you'll need to replace the files in the main directory and run ```make build```. Furthermore, for the first two tests (DockerTest and BinaryTest), you'll need to replace client's main.go file with the original repository since the current one is configured for the standalone environment. This includes docker-compose.yaml, prometheus.yml, Dockerfile.
-
+There are the three "Test" directories. Depending on the test you want to run, you'll need to replace the files in the main directory and run ```make build```. Furthermore, for the first two tests (DockerTest and BinaryTest), you'll need to replace client's main.go file with the original repository since the current one is configured for the standalone environment.
 ## Build and Push Docker Images
+Make sure you have the correct test configuration for docker-compose.yaml, prometheus.yml, Dockerfile (see directory ..Test/Docker_ImageBuild)
 Run ```make build``` in main directory to make the binaries. I believe the binaries should be in the main directory and will be named pushprox-client and pushprox-proxy. Make sure to change main.go in client according to your desired test.
 
 Run ```docker-compose up -d```. Note that if you have current images or containers running, you'll have to delete them before this command in order to have the new changes.
