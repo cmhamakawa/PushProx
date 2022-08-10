@@ -283,50 +283,42 @@ func main() {
 
 	// added by christine
 	//level.Info(c.logger).Log("CHRISTINE", "Check Proxy Environment: ",  http.ProxyFromEnvironment.Scheme)
-	var proxyConn net.Conn
-	var err error
 	envoyAddress := "172.24.4.28:10001"
-	tempProxyURL := strings.TrimRight(*proxyURL, "/")
-	tempProxyURL = strings.TrimPrefix(tempProxyURL, "http://")
-	proxyConn, err = net.Dial("tcp", envoyAddress)
-	if err != nil {
-		level.Error(coordinator.logger).Log("msg", "dialing proxy %q failed: %v", envoyAddress, err)
-		os.Exit(1)
-	}
-	fmt.Fprintf(proxyConn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", tempProxyURL, tempProxyURL)
+	addr := strings.TrimRight(*proxyURL, "/")
+	addr = strings.TrimPrefix(addr, "http://")
+	
+	var err1 error
 
-	br := bufio.NewReader(proxyConn)
-	res, err := http.ReadResponse(br, nil)
+	dialer, err1 := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		var proxyConn net.Conn
+		var err error
+		proxyConn, err = net.Dial("tcp", envoyAddress)
+		if err != nil {
+			level.Error(coordinator.logger).Log("msg", "dialing proxy %q failed: %v", envoyAddress, err)
+			return nil, fmt.Errorf("dialing proxy %q failed: %v", envoyAddress, err)
+		}
+		fmt.Fprintf(proxyConn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", addr, addr)
 
-	if err != nil {
-		level.Error(coordinator.logger).Log("msg", "reading HTTP response from CONNECT to %s via proxy %s failed: %v",
-			*proxyURL, envoyAddress, err)
-		os.Exit(1)
+		br := bufio.NewReader(proxyConn)
+		res, err := http.ReadResponse(br, nil)
 
-	}
+		if err != nil {
+			level.Error(coordinator.logger).Log("msg", "reading HTTP response from CONNECT to %s via proxy %s failed: %v",
+			addr, envoyAddress, err)
+			return nil, fmt.Errorf("reading HTTP response from CONNECT to %s via proxy %s failed: %v",
+				addr, envoyAddress, err)
+		}
 
-	// err = res.Body.Close()
+		if res.StatusCode != 200 {
+			level.Error(coordinator.logger).Log("msg","proxy error from %s while dialing %s: %v", envoyAddress, addr, res.Status)
+			return nil, fmt.Errorf("proxy error from %s while dialing %s: %v", envoyAddress, addr, res.Status)
+		}
 
-	// if err != nil {
-	// 	level.Error(coordinator.logger).Log("msg", "response body close has failed: %s via proxy %s and %v",
-	// 		*proxyURL, envoyAddress, err)
-	// 	os.Exit(1)
-
-	// }
-
-	if res.StatusCode != 200 {
-		level.Error(coordinator.logger).Log("msg", "proxy error from %s while dialing %s: %v", envoyAddress, tempProxyURL, res.Status)
-		// os.Exit(1)
-
-	}
-
-	dialer, err := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return proxyConn, nil
 	}, nil
 
-	if err != nil {
+	if err1 != nil {
 		level.Error(coordinator.logger).Log("msg","failed to get dialer for client")
-		os.Exit(1)
 	}
 	// added by christine
 

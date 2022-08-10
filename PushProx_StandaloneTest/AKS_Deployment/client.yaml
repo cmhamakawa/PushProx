@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pushclient-deployment
+  labels:
+    app: pushclient-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pushclient-deployment
+  template:
+    metadata:
+      labels:
+        app: pushclient-deployment
+    spec:
+      containers:
+      - name: pushclient-deployment
+        image: christinehacr.azurecr.io/pushprox_client-binary_v11
+        command: ['/app/pushprox-client', '--proxy-url=http://10.0.229.110:8080/', '--fqdn=172.24.1.29']
+        ports:
+        - containerPort: 1111

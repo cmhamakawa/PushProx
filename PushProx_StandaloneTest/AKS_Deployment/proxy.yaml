@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pushproxy-deployment
+  labels:
+    app: pushproxy-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pushproxy-deployment
+  template:
+    metadata:
+      labels:
+        app: pushproxy-deployment
+    spec:
+      containers:
+      - name: pushproxy-deployment
+        image: christinehacr.azurecr.io/pushprox_proxy-binary
+        command: ['/app/pushprox-proxy']
+        ports:
+          - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy
+spec:
+  selector:
+    app: pushproxy-deployment
+  ports:
+    - port: 8080
+      targetPort: 8080
