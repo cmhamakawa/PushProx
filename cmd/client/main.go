@@ -283,7 +283,7 @@ func main() {
 
 	// added by christine
 	//level.Info(c.logger).Log("CHRISTINE", "Check Proxy Environment: ",  http.ProxyFromEnvironment.Scheme)
-	envoyAddress := "172.24.4.28:10001"
+	envoyAddress := "172.24.2.60:10001"
 	addr := strings.TrimRight(*proxyURL, "/")
 	addr = strings.TrimPrefix(addr, "http://")
 	
