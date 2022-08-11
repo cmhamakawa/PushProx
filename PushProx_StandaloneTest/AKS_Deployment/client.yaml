@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: pushclient-deployment
-        image: christinehacr.azurecr.io/pushprox_client-binary_v11
-        command: ['/app/pushprox-client', '--proxy-url=http://10.0.229.110:8080/', '--fqdn=172.24.1.29']
+        image: christinehacr.azurecr.io/pushprox_client_v14
+        command: ['/app/pushprox-client', '--proxy-url=http://20.99.207.94:8080', '--fqdn=172.24.1.48'] # using load balancer IP here in proxy-url
         ports:
         - containerPort: 1111
