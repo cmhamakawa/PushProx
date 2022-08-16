@@ -45,6 +45,8 @@ import (
 var (
 	myFqdn      = kingpin.Flag("fqdn", "FQDN to register with").Default(fqdn.Get()).String()
 	proxyURL    = kingpin.Flag("proxy-url", "Push proxy to talk to.").Required().String()
+	connectIP	= kingpin.Flag("connect-ip", "IP Address for HTTP connect.").Required().String()
+	connectPort = kingpin.Flag("connect-port", "Port number for HTTP connect.").Required().String()
 	caCertFile  = kingpin.Flag("tls.cacert", "<file> CA certificate to verify peer against").String() // Q: isn't this authentication?
 	tlsCert     = kingpin.Flag("tls.cert", "<cert> Client certificate file").String() // isn't this certification?
 	tlsKey      = kingpin.Flag("tls.key", "<key> Private key file").String()
@@ -283,7 +285,7 @@ func main() {
 
 	// added by christine
 	//level.Info(c.logger).Log("CHRISTINE", "Check Proxy Environment: ",  http.ProxyFromEnvironment.Scheme)
-	envoyAddress := "172.24.2.60:10001"
+	envoyAddress := *connectIP + ":" + *connectPort // "172.24.2.60:10001"
 	addr := strings.TrimRight(*proxyURL, "/")
 	addr = strings.TrimPrefix(addr, "http://")
 	

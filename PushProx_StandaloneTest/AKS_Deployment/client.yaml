@@ -1,22 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pushclient-deployment
+  name: client
+  namespace: $apiserver-namespace # needs to be changed
   labels:
-    app: pushclient-deployment
+    app: client
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: pushclient-deployment
+      app: client
   template:
     metadata:
       labels:
-        app: pushclient-deployment
+        app: client
     spec:
       containers:
-      - name: pushclient-deployment
-        image: christinehacr.azurecr.io/pushprox_client_v14
-        command: ['/app/pushprox-client', '--proxy-url=http://20.99.207.94:8080', '--fqdn=172.24.1.48'] # using load balancer IP here in proxy-url
+      - name: client
+        image: chacr.azurecr.io/pushprox_client_v2
+        command: ['/app/pushprox-client', '--proxy-url=http://10.0.84.15:8080', '--fqdn=172.24.4.28', '--connect-ip=172.24.0.54', '--connect-port=10001'] # proxy url is the service, fqdn is the port of component, connect ip is apiserver port, connect port is envoy port
         ports:
         - containerPort: 1111

@@ -14,3 +14,8 @@ services:
       target: prometheus
     ports:
       - 9090:9090
+  client-envoy-proxy:
+    build:
+      context: .
+      target: envoy
+      
