@@ -45,15 +45,16 @@ import (
 var (
 	myFqdn      = kingpin.Flag("fqdn", "FQDN to register with").Default(fqdn.Get()).String()
 	proxyURL    = kingpin.Flag("proxy-url", "Push proxy to talk to.").Required().String()
-	connectIP	= kingpin.Flag("connect-ip", "IP Address for HTTP connect.").Required().String()
-	connectPort = kingpin.Flag("connect-port", "Port number for HTTP connect.").Required().String()
 	caCertFile  = kingpin.Flag("tls.cacert", "<file> CA certificate to verify peer against").String() // Q: isn't this authentication?
 	tlsCert     = kingpin.Flag("tls.cert", "<cert> Client certificate file").String() // isn't this certification?
 	tlsKey      = kingpin.Flag("tls.key", "<key> Private key file").String()
 	metricsAddr = kingpin.Flag("metrics-addr", "Serve Prometheus metrics at this address").Default(":9369").String()
+	connectAddr	= kingpin.Flag("connect-address", "Host address with port for HTTP connect.").String()
+	localScrape	= kingpin.Flag("local-scrape", "Define to use local host as scrape target.").String()
 
 	retryInitialWait = kingpin.Flag("proxy.retry.initial-wait", "Amount of time to wait after proxy failure").Default("1s").Duration()
 	retryMaxWait     = kingpin.Flag("proxy.retry.max-wait", "Maximum amount of time to wait between proxy poll retries").Default("5s").Duration()
+
 )
 
 var (
@@ -135,6 +136,13 @@ func (c *Coordinator) doScrape(request *http.Request, proxyClient *http.Client, 
 		return
 	}
 
+	// For scraping multiple clients locally. Use "localScrape" to indicate use of localhost and differentiate between clients.
+	originalHost := request.URL.Host
+	if *localScrape != "" {
+		portNumber := strings.Split(request.URL.Host, ":")[1]  
+		request.URL.Host = "localhost:" + portNumber
+	}
+
 	scrapeResp, err := scrapeTargetClient.Do(request)
 	if err != nil {
 		msg := fmt.Sprintf("failed to scrape %s", request.URL.String())
@@ -142,6 +150,11 @@ func (c *Coordinator) doScrape(request *http.Request, proxyClient *http.Client, 
 		return
 	}
 	level.Info(logger).Log("msg", "Retrieved scrape response")
+
+	if *localScrape != "" {
+		request.URL.Host = originalHost
+	}
+
 	if err = c.doPush(scrapeResp, request, proxyClient); err != nil {
 		pushErrorCounter.Inc()
 		level.Warn(logger).Log("msg", "Failed to push scrape response:", "err", err)
@@ -283,60 +296,71 @@ func main() {
 		}()
 	}
 
-	// added by christine
-	//level.Info(c.logger).Log("CHRISTINE", "Check Proxy Environment: ",  http.ProxyFromEnvironment.Scheme)
-	envoyAddress := *connectIP + ":" + *connectPort // "172.24.2.60:10001"
-	addr := strings.TrimRight(*proxyURL, "/")
-	addr = strings.TrimPrefix(addr, "http://")
+	var proxyTransport *http.Transport
+	var scrapeTargetTransport *http.Transport
+	var proxyClient *http.Client
+	var scrapeTargetClient *http.Client
+
+	if *connectAddr != "" {
+		var tempErr error
 	
-	var err1 error
+		connectAddress := *connectAddr
+		addr := strings.TrimRight(*connectAddr, "/")
+		addr = strings.TrimPrefix(addr, "http://")
 
-	dialer, err1 := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		var proxyConn net.Conn
-		var err error
-		proxyConn, err = net.Dial("tcp", envoyAddress)
-		if err != nil {
-			level.Error(coordinator.logger).Log("msg", "dialing proxy %q failed: %v", envoyAddress, err)
-			return nil, fmt.Errorf("dialing proxy %q failed: %v", envoyAddress, err)
+		dialer, tempErr := func(ctx context.Context, network, addr string) (net.Conn, error) {
+			var proxyConn net.Conn
+			var err error
+			proxyConn, err = net.Dial("tcp", connectAddress)
+			if err != nil {
+				level.Error(coordinator.logger).Log("msg", "dialing proxy failed:", connectAddress, err)
+				return nil, fmt.Errorf("dialing proxy failed:", connectAddress, err)
+			}
+			fmt.Fprintf(proxyConn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", addr, addr)
+	
+			br := bufio.NewReader(proxyConn)
+			res, err := http.ReadResponse(br, nil)
+	
+			if err != nil {
+				level.Error(coordinator.logger).Log("msg", "reading HTTP response from CONNECT via proxy failed",
+				addr, connectAddress, err)
+				return nil, fmt.Errorf("reading HTTP response from CONNECT via proxy failed", err)
+			}
+	
+			if res.StatusCode != 200 {
+				level.Error(coordinator.logger).Log("msg","proxy error from server while dialing", connectAddress, addr, res.Status)
+				return nil, fmt.Errorf("proxy error from server while dialing", connectAddress, addr, res.Status)
+			}
+	
+			return proxyConn, nil
+		}, nil
+
+		if tempErr != nil {
+			level.Error(coordinator.logger).Log("msg","failed to get dialer for proxy client")
 		}
-		fmt.Fprintf(proxyConn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", addr, addr)
 
-		br := bufio.NewReader(proxyConn)
-		res, err := http.ReadResponse(br, nil)
-
-		if err != nil {
-			level.Error(coordinator.logger).Log("msg", "reading HTTP response from CONNECT to %s via proxy %s failed: %v",
-			addr, envoyAddress, err)
-			return nil, fmt.Errorf("reading HTTP response from CONNECT to %s via proxy %s failed: %v",
-				addr, envoyAddress, err)
+		proxyTransport = &http.Transport{
+			DialContext: dialer,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
 		}
-
-		if res.StatusCode != 200 {
-			level.Error(coordinator.logger).Log("msg","proxy error from %s while dialing %s: %v", envoyAddress, addr, res.Status)
-			return nil, fmt.Errorf("proxy error from %s while dialing %s: %v", envoyAddress, addr, res.Status)
+	} else {
+		proxyTransport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       tlsConfig,
 		}
-
-		return proxyConn, nil
-	}, nil
-
-	if err1 != nil {
-		level.Error(coordinator.logger).Log("msg","failed to get dialer for proxy client")
 	}
-	// added by christine
 
-	// for Envoy Client - client will set up http connect to konnectivity svr
-	proxyTransport := &http.Transport{
-		// Proxy: http.ProxyFromEnvironment, // does this have the pushproxy url?
-		DialContext: dialer,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		// TLSHandshakeTimeout:   10 * time.Second,
-		// ExpectContinueTimeout: 1 * time.Second,
-		// TLSClientConfig:       tlsConfig,
-	}
-
-	// NOTE: may not need all this, but we are using it temporarily for our scrapeTargetClient
-	scrapeTargetTransport := &http.Transport{
+	scrapeTargetTransport = &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
@@ -350,10 +374,8 @@ func main() {
 		TLSClientConfig:       tlsConfig,
 	}
 
-
-	// Define both clients
-	proxyClient := &http.Client{Transport: proxyTransport}
-	scrapeTargetClient := &http.Client{Transport: scrapeTargetTransport}
+	proxyClient = &http.Client{Transport: proxyTransport}
+	scrapeTargetClient = &http.Client{Transport: scrapeTargetTransport}
 
 	coordinator.loop(newBackOffFromFlags(), proxyClient, scrapeTargetClient)
 }
