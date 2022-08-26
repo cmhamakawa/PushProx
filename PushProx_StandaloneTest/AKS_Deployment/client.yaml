@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pushclient-deployment
+  name: client
+  namespace: 62fa842737ed3d00012e9319 # needs to be changed
   labels:
-    app: pushclient-deployment
+    app: client
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: pushclient-deployment
+      app: client
   template:
     metadata:
       labels:
-        app: pushclient-deployment
+        app: client
     spec:
       containers:
-      - name: pushclient-deployment
-        image: christinehacr.azurecr.io/pushprox_client-binary_v11
-        command: ['/app/pushprox-client', '--proxy-url=http://10.0.229.110:8080/', '--fqdn=172.24.1.29']
+      - name: client
+        image: christineacr.azurecr.io/pushprox_client_v3
+        command: ['/app/pushprox-client', '--proxy-url=http://10.0.84.15:8080', '--fqdn=172.24.4.28', '--connect-ip=172.24.1.60', '--connect-port=10001']
         ports:
-        - containerPort: 1111
