@@ -1,8 +1,0 @@
-global:
-  scrape_interval: 5s
-  evaluation_interval: 5s
-scrape_configs:
-  - job_name: 'kube-scheduler'
-    proxy_url: http://proxy:8080/
-    static_configs:
-      - targets: ['172.24.1.29:10251']

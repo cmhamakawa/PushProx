@@ -8,14 +8,4 @@ services:
     build:
       context: .
       target: proxy
-  prometheus:
-    build:
-      context: .
-      target: prometheus
-    ports:
-      - 9090:9090
-  client-envoy-proxy:
-    build:
-      context: .
-      target: envoy
       
